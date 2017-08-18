@@ -16,12 +16,25 @@ namespace RedditSharp.Things
         private const string InboxUrl = "/message/inbox.json";
         private const string SentUrl = "/message/sent.json";
 
+        /// <summary>
+        /// Initialize.
+        /// </summary>
+        /// <param name="reddit"></param>
+        /// <param name="json"></param>
+        /// <param name="webAgent"></param>
+        /// <returns></returns>
         public new AuthenticatedUser Init(Reddit reddit, JToken json, IWebAgent webAgent)
         {
             CommonInit(reddit, json, webAgent);
             JsonConvert.PopulateObject(json["name"] == null ? json["data"].ToString() : json.ToString(), this,
                 reddit.JsonSerializerSettings);
             return this;
+        }
+
+
+        private void CommonInit(Reddit reddit, JToken json, IWebAgent webAgent)
+        {
+            base.Init(reddit, json, webAgent);
         }
 
 #if (_HAS_ASYNC_)
@@ -32,13 +45,17 @@ namespace RedditSharp.Things
                 reddit.JsonSerializerSettings));
             return this;
         }
+
+        private async Task CommonInitAsync(Reddit reddit, JToken json, IWebAgent webAgent)
+        {
+            await base.InitAsync(reddit, json, webAgent).ConfigureAwait(false);
+        }
 #endif
 
-        private void CommonInit(Reddit reddit, JToken json, IWebAgent webAgent)
-        {
-            base.Init(reddit, json, webAgent);
-        }
 
+        /// <summary>
+        /// Get a <see cref="Listing{T}"/> of subreddits moderated by the logged in user.
+        /// </summary>
         public Listing<Subreddit> ModeratorSubreddits
         {
             get
@@ -47,6 +64,9 @@ namespace RedditSharp.Things
             }
         }
 
+        /// <summary>
+        /// Get a <see cref="Listing{T}"/> of unread messages.
+        /// </summary>
         public Listing<Thing> UnreadMessages
         {
             get
@@ -55,6 +75,10 @@ namespace RedditSharp.Things
             }
         }
 
+
+        /// <summary>
+        /// Get a <see cref="Listing{T}"/> of items in the Moderation Queue.
+        /// </summary>
         public Listing<VotableThing> ModerationQueue
         {
             get
@@ -63,6 +87,10 @@ namespace RedditSharp.Things
             }
         }
 
+
+        /// <summary>
+        /// Get a <see cref="Listing{T}"/> of unmoderated Posts.
+        /// </summary>
         public Listing<Post> UnmoderatedLinks
         {
             get
@@ -71,6 +99,10 @@ namespace RedditSharp.Things
             }
         }
 
+
+        /// <summary>
+        /// Get a <see cref="Listing{T}"/> of (old style) modmail.
+        /// </summary>
         public Listing<PrivateMessage> ModMail
         {
             get
@@ -79,6 +111,10 @@ namespace RedditSharp.Things
             }
         }
 
+
+        /// <summary>
+        /// Get a <see cref="Listing{T}"/> of private messages.
+        /// </summary>
         public Listing<PrivateMessage> PrivateMessages
         {
             get
@@ -87,6 +123,9 @@ namespace RedditSharp.Things
             }
         }
 
+        /// <summary>
+        /// Get a <see cref="Listing{T}"/> of messages in the inbox.
+        /// </summary>
         public Listing<PrivateMessage> Inbox
         {
             get
@@ -95,12 +134,25 @@ namespace RedditSharp.Things
             }
         }
 
+
+        /// <summary>
+        /// Get a <see cref="Listing{T}"/> of sent messages.
+        /// </summary>
         public Listing<PrivateMessage> Sent
         {
             get
             {
                 return new Listing<PrivateMessage>(Reddit, SentUrl, WebAgent);
             }
+        }
+
+
+        /// <summary>
+        /// Get a <see cref="Listing{T}"/> of unmoderated links.
+        /// </summary>
+        public Listing<Post> GetUnmoderatedLinks()
+        {
+            return new Listing<Post>(Reddit, UnmoderatedUrl, WebAgent);
         }
 
         #region Obsolete Getter Methods
@@ -123,11 +175,6 @@ namespace RedditSharp.Things
             return new Listing<VotableThing>(Reddit, ModQueueUrl, WebAgent);
         }
 
-        public Listing<Post> GetUnmoderatedLinks()
-        {
-            return new Listing<Post>(Reddit, UnmoderatedUrl, WebAgent);
-        }
-
         [Obsolete("Use ModMail property instead")]
         public Listing<PrivateMessage> GetModMail()
         {
@@ -148,12 +195,27 @@ namespace RedditSharp.Things
 
         #endregion Obsolete Getter Methods
 
+
+        /// <summary>
+        /// User modhash.
+        /// <para>A modhash is a token that the reddit API requires to help prevent CSRF. Modhashes can be 
+        /// obtained via the /api/me.json call or in response data of listing endpoints.  The preferred way
+        /// to send a modhash is to include an X-Modhash custom HTTP header with your requests.</para>
+        ///<para>Modhashes are not required when authenticated with OAuth.</para>
+        /// </summary>
         [JsonProperty("modhash")]
         public string Modhash { get; set; }
 
+
+        /// <summary>
+        /// Returns true of the user has mail.
+        /// </summary>
         [JsonProperty("has_mail")]
         public bool HasMail { get; set; }
 
+        /// <summary>
+        /// Returns true of the user has modmail.
+        /// </summary>
         [JsonProperty("has_mod_mail")]
         public bool HasModMail { get; set; }
     }

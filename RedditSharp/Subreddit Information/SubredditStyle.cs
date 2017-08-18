@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
-using System.Web;
 using RedditSharp.Things;
+using RestSharp.Extensions.MonoHttp;
 
 namespace RedditSharp
 {
@@ -33,10 +33,24 @@ namespace RedditSharp
             }
         }
 
+        /// <summary>
+        /// Subreddit stylesheet.
+        /// </summary>
         public string CSS { get; set; }
+
+        /// <summary>
+        /// List of images for the stylesheet.
+        /// </summary>
         public List<SubredditImage> Images { get; set; }
+
+        /// <summary>
+        /// Subreddit.
+        /// </summary>
         public Subreddit Subreddit { get; set; }
 
+        /// <summary>
+        /// Update the css.
+        /// </summary>
         public void UpdateCss()
         {
             var request = WebAgent.CreatePost(UpdateCssUrl);
@@ -55,6 +69,12 @@ namespace RedditSharp
             var json = JToken.Parse(data);
         }
 
+        /// <summary>
+        /// Upload an image to reddit.
+        /// </summary>
+        /// <param name="name">name of image.</param>
+        /// <param name="imageType"><see cref="ImageType"/> of image</param>
+        /// <param name="file">image buffer</param>
         public void UploadImage(string name, ImageType imageType, byte[] file)
         {
             var request = WebAgent.CreatePost(UploadImageUrl);

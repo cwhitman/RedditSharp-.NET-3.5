@@ -4,9 +4,19 @@ namespace RedditSharp
 {
     public struct Captcha
     {
+        /// <summary>
+        /// Captcha url format.
+        /// </summary>
         private const string UrlFormat = "http://www.reddit.com/captcha/{0}";
 
+        /// <summary>
+        /// Captcha Id.
+        /// </summary>
         public readonly string Id;
+
+        /// <summary>
+        /// Captcha url.
+        /// </summary>
         public readonly Uri Url;
 
         internal Captcha(string id)

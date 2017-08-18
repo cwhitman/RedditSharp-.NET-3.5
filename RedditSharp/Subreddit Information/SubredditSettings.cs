@@ -1,7 +1,7 @@
-﻿using System.Web;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RedditSharp.Things;
+using RestSharp.Extensions.MonoHttp;
 
 namespace RedditSharp
 {

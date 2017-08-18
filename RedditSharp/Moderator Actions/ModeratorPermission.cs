@@ -2,21 +2,46 @@
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using RedditSharp.Utils;
 
 namespace RedditSharp
 {
    [Flags]
    public enum ModeratorPermission
    {
-      None = 0x00,
-      Access = 0x01,
-      Config = 0x02,
-      Flair = 0x04,
-      Mail = 0x08,
-      Posts = 0x10,
-      Wiki = 0x20,
-      All = Access | Config | Flair | Mail | Posts | Wiki
-   }
+        /// <summary>
+        /// No permissions.
+        /// </summary>
+        None = 0x00,
+        /// <summary>
+        /// access permissions.
+        /// </summary>
+        Access = 0x01,
+        /// <summary>
+        /// Subreddit config.
+        /// </summary>
+        Config = 0x02,
+        /// <summary>
+        /// Flair management.
+        /// </summary>
+        Flair = 0x04,
+        /// <summary>
+        /// Modmail.
+        /// </summary>
+        Mail = 0x08,
+        /// <summary>
+        /// Moderate posts.
+        /// </summary>
+        Posts = 0x10,
+        /// <summary>
+        /// Edit / view protected wiki paes.
+        /// </summary>
+        Wiki = 0x20,
+        /// <summary>
+        /// All permissions.
+        /// </summary>
+        All = Access | Config | Flair | Mail | Posts | Wiki
+    }
 
    internal class ModeratorPermissionConverter : JsonConverter
    {
@@ -27,18 +52,18 @@ namespace RedditSharp
 
       public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
       {
-         //             var data = String.Join(",", JArray.Load(reader).Select(t => t.ToString()));
-         // 
-         //             ModeratorPermission result;
-         // 
-         //             var valid = Enum.TryParse(data, true, out result);
-         // 
-         //             if (!valid)
-         //                 result = ModeratorPermission.None;
-         // 
-         //             return result;
-         return ModeratorPermission.None;
-      }
+            var data = string.Join(",", JArray.Load(reader).Select(t => t.ToString()).ToArray());
+
+            ModeratorPermission result;
+            
+            var valid = EnumUtils.TryParse< ModeratorPermission>(data,true, out result);
+
+            if (!valid)
+                result = ModeratorPermission.None;
+
+            return result;
+
+        }
 
       public override bool CanConvert(Type objectType)
       {

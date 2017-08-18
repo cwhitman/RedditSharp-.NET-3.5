@@ -6,8 +6,8 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
-using System.Web;
 using Newtonsoft.Json.Linq;
+using RestSharp.Extensions.MonoHttp;
 
 namespace RedditSharp
 {
@@ -18,14 +18,16 @@ namespace RedditSharp
       /// </summary>
       public static string UserAgent { get; set; }
 
-
       /// <summary>
       /// It is strongly advised that you leave this enabled. Reddit bans excessive
       /// requests with extreme predjudice.
       /// </summary>
       public static bool EnableRateLimit { get; set; }
 
-      public static string Protocol { get; set; }
+        /// <summary>
+        /// web protocol "http", "https"
+        /// </summary>
+        public static string Protocol { get; set; }
 
       /// <summary>
       /// It is strongly advised that you leave this set to Burst or Pace. Reddit bans excessive
@@ -75,14 +77,29 @@ namespace RedditSharp
       private static int _requestsThisBurst;
 
         /// <summary>
-        /// Does nothing if running on a .NET platform.
-        /// Initializes the MonoRuntime if running on a Mono Platform.
+        /// Initializes some static fields.
+        /// Sets up the ServicePointManager if running on a mono platform.
+        /// </summary>
+        static WebAgent()
+        {
+            UserAgent = "";
+            RateLimit = RateLimitMode.Pace;
+            Protocol = "https";
+            RootDomain = "www.reddit.com";
+
+            if (Type.GetType("Mono.Runtime") != null)
+            {
+                ServicePointManager.ServerCertificateValidationCallback = (s, c, ch, ssl) => true;
+            }
+        }
+
+        /// <summary>
+        /// Initializes the cookie container if running on a mono platform.
         /// </summary>
         public WebAgent()
         {
             if (Type.GetType("Mono.Runtime") != null)
             {
-                ServicePointManager.ServerCertificateValidationCallback = (s, c, ch, ssl) => true;
                 Cookies = new CookieContainer();
             }
         }
@@ -109,8 +126,22 @@ namespace RedditSharp
          get { return _requestsThisBurst; }
       }
 
+        /// <summary>
+        /// Whether or not to use a proxy when executing web requests
+        /// </summary>
+        public bool UseProxy { get; set; }
 
-      public JToken CreateAndExecuteRequest(string url)
+        /// <summary>
+        /// Proxy for executing web requests, will not be used unless <see cref="UseProxy"/> is true
+        /// </summary>
+        public WebProxy Proxy { get; set; }
+
+        /// <summary>
+        /// Execute a request and return a <see cref="JToken"/>
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns></returns>
+        public JToken CreateAndExecuteRequest(string url)
       {
          Uri uri;
          if (!Uri.TryCreate(url, UriKind.Absolute, out uri))
@@ -141,6 +172,12 @@ namespace RedditSharp
       public JToken ExecuteRequest(HttpWebRequest request)
       {
          EnforceRateLimit();
+
+        if (UseProxy)
+        {
+            request.Proxy = Proxy;
+        }
+
          HttpWebResponse response = (HttpWebResponse)request.GetResponse();
          var result = GetResponseString(response.GetResponseStream());
 
@@ -181,8 +218,10 @@ namespace RedditSharp
          return json;
 
       }
-
-      [MethodImpl(MethodImplOptions.Synchronized)]
+        /// <summary>
+        /// Enforce the api throttle.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.Synchronized)]
       private static void EnforceRateLimit()
       {
          switch (RateLimit)
@@ -226,8 +265,13 @@ namespace RedditSharp
                break;
          }
       }
-
-      public virtual HttpWebRequest CreateRequest(string url, string method)
+        /// <summary>
+        /// Create a <see cref="HttpWebRequest"/>
+        /// </summary>
+        /// <param name="url">target  uri</param>
+        /// <param name="method">http method</param>
+        /// <returns></returns>
+        public virtual HttpWebRequest CreateRequest(string url, string method)
       {
          EnforceRateLimit();
          bool prependDomain;
@@ -254,10 +298,16 @@ namespace RedditSharp
          }
          request.Method = method;
          request.UserAgent = UserAgent + " - with RedditSharp by /u/sircmpwn";
-         return request;
+            request = InjectProxy(request);
+            return request;
       }
-
-      protected virtual HttpWebRequest CreateRequest(Uri uri, string method)
+        /// <summary>
+        /// Create a <see cref="HttpWebRequest"/>
+        /// </summary>
+        /// <param name="uri">target  uri</param>
+        /// <param name="method">http method</param>
+        /// <returns></returns>
+        protected virtual HttpWebRequest CreateRequest(Uri uri, string method)
       {
          EnforceRateLimit();
          var request = (HttpWebRequest)WebRequest.Create(uri);
@@ -275,32 +325,77 @@ namespace RedditSharp
          request.UserAgent = UserAgent + " - with RedditSharp by /u/sircmpwn";
          return request;
       }
-
-      public HttpWebRequest CreateGet(string url)
+        /// <summary>
+        /// Create a http GET <see cref="HttpWebRequest"/>
+        /// </summary>
+        /// <param name="url">target url</param>
+        /// <returns></returns>
+        public HttpWebRequest CreateGet(string url)
       {
          return CreateRequest(url, "GET");
       }
-
-      private HttpWebRequest CreateGet(Uri url)
+        /// <summary>
+        /// Create a http GET <see cref="HttpWebRequest"/>
+        /// </summary>
+        /// <param name="url">target url</param>
+        /// <returns></returns>
+        private HttpWebRequest CreateGet(Uri url)
       {
          return CreateRequest(url, "GET");
       }
-
-      public HttpWebRequest CreatePost(string url)
+        /// <summary>
+        /// Create a http POST <see cref="HttpWebRequest"/>
+        /// </summary>
+        /// <param name="url">target url</param>
+        /// <returns></returns>
+        public HttpWebRequest CreatePost(string url)
       {
          var request = CreateRequest(url, "POST");
          request.ContentType = "application/x-www-form-urlencoded";
          return request;
       }
+        /// <summary>
+        /// Create a http PUT <see cref="HttpWebRequest"/>
+        /// </summary>
+        /// <param name="url">target url</param>
+        /// <returns></returns>
+        public virtual HttpWebRequest CreatePut(string url)
+        {
+            var request = CreateRequest(url, "PUT");
+            request.ContentType = "application/x-www-form-urlencoded";
+            return request;
+        }
 
-      public string GetResponseString(Stream stream)
-      {
-         var data = new StreamReader(stream).ReadToEnd();
-         stream.Close();
-         return data;
-      }
+        /// <summary>
+        /// Create a http DELETE <see cref="HttpWebRequest"/>
+        /// </summary>
+        /// <param name="url">target url</param>
+        /// <returns></returns>
+        public virtual HttpWebRequest CreateDelete(string url)
+        {
+            var request = CreateRequest(url, "DELETE");
+            request.ContentType = "application/x-www-form-urlencoded";
+            return request;
+        }
 
-      public void WritePostBody(Stream stream, object data, params string[] additionalFields)
+        /// <summary>
+        /// Read a string from a stream.
+        /// </summary>
+        /// <param name="stream">response stream</param>
+        /// <returns></returns>
+        public virtual string GetResponseString(Stream stream)
+        {
+            var data = new StreamReader(stream).ReadToEnd();
+            stream.Close();
+            return data;
+        }
+        /// <summary>
+        /// Write an object to a stream.
+        /// </summary>
+        /// <param name="stream">output stream</param>
+        /// <param name="data">input object</param>
+        /// <param name="additionalFields">additional fields to write</param>
+        public void WritePostBody(Stream stream, object data, params string[] additionalFields)
       {
          var type = data.GetType();
          var properties = type.GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
@@ -322,5 +417,25 @@ namespace RedditSharp
          stream.Write(raw, 0, raw.Length);
          stream.Close();
       }
-   }
+
+        private static bool IsOAuth()
+        {
+            return RootDomain == "oauth.reddit.com";
+        }
+
+        /// <summary>
+        /// Inject the web proxy <see cref="Proxy"/> into the provided request
+        /// </summary>
+        /// <param name="request">The request object to inject the proxy into</param>
+        public virtual HttpWebRequest InjectProxy(HttpWebRequest request)
+        {
+            if (this.UseProxy)
+            {
+                request.Proxy = this.Proxy;
+            }
+            return request;
+        }
+
+    }
+
 }
